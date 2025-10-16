@@ -1,6 +1,6 @@
 # SyslogServer
 
-NodeJS Syslog Server.
+NodeJS Syslog Server providing UDP and optional TCP listeners.
 
 ### Quickstart
 
@@ -21,7 +21,11 @@ server.on("message", (value) => {
     console.log(value.message);  // the syslog message
 });
 
-server.start();
+server.start({
+    port: 5514,
+    udp: { enabled: true, recvBufferSize: 16 * 1024 * 1024 },
+    tcp: { enabled: true, port: 5514 }
+});
 ```
 
 ### Functions
@@ -29,11 +33,13 @@ server.start();
 ###### .start([options], [callback])
 
 - **options** <Object> - Optional - The options passed to the server. Supports the following properties:
-    - port [Number] - Optional - Defaults to 514.
+    - port [Number] - Optional - Defaults to 514 (shared by UDP and TCP unless overridden).
     - address [String] - Optional - Defaults to "0.0.0.0".
     - exclusive [Boolean] - Optional - Defaults to true.
+    - udp [Object] - Optional - `{ enabled: true, recvBufferSize: 16MB }` by default. Disable by setting `enabled: false` or override `recvBufferSize`.
+    - tcp [Object] - Optional - `{ enabled: false, port: options.port, address: options.address, allowHalfOpen: false, keepAlive: true, keepAliveDelay: 60000, recvBufferSize: 16MB }`. Set `enabled: true` to accept TCP syslog; override values as needed.
 
-    For more informatio on the options object, check NodeJS oficial [API documentation](https://nodejs.org/api/dgram.html#dgram_socket_bind_options_callback).
+    For more information on the UDP options object, check NodeJS official [API documentation](https://nodejs.org/api/dgram.html#dgram_socket_bind_options_callback). TCP options map to NodeJS [`net.createServer`](https://nodejs.org/api/net.html#netcreateserveroptions-connectionlistener).
 
 - **callback** [Function] - Optional - Callback function called once the server starts, receives an error object as argument should it fail.
 
@@ -43,7 +49,7 @@ The start function returns a Promise.
 
 - **callback** [Function] - Optional - Callback function called once the server socket is closed, receives an error object as argument should it fail.
 
-The stop function returns a Promise.
+The stop function returns a Promise. It shuts down both UDP and TCP listeners (if enabled).
 
 ###### .isRunning()
 
@@ -55,3 +61,14 @@ The isRunning function is a synchronous function that returns a boolean value, i
 - **stop** - fired once the server is shutdown
 - **error** - fired whenever an error occur, an error object is passed to the handler function
 - **message** - fired once the server receives a syslog message
+- **warn** - emitted when non-fatal issues occur (e.g., failing to raise socket buffer sizes)
+
+### Testing
+
+The project ships with a lightweight smoke test covering both UDP and TCP listeners. Run it with:
+
+```bash
+npm test
+```
+
+The test suite is verified against Node.js 22.x; older LTS releases (>=16) are also supported.
